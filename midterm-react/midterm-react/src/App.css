@@ -327,3 +327,208 @@ input {
   color: white;
   font-size: 12px;
 }
+
+.backToRoomsButton {
+  display: none;
+  background: transparent;
+  color: #111827;
+  font-size: 24px;
+  padding: 0;
+  margin-right: 12px;
+}
+
+@media (max-width: 768px) {
+  .mainLayout {
+    display: block;
+  }
+
+  .sidebar {
+    height: calc(100vh - 64px);
+  }
+
+  .hideOnMobile {
+    display: none;
+  }
+
+  .showChatOnMobile {
+    height: calc(100vh - 64px);
+  }
+
+  .backToRoomsButton {
+    display: inline-block;
+  }
+
+  .chatHeader {
+    display: flex;
+    align-items: center;
+  }
+
+  .floatingAddButton {
+    left: 24px;
+    bottom: 24px;
+  }
+}
+
+.createRoomModal textarea,
+.createRoomModal select {
+  width: 100%;
+  padding: 12px;
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  font-family: Arial, sans-serif;
+}
+
+.createRoomModal textarea {
+  min-height: 80px;
+  resize: vertical;
+}
+
+.chatHeader {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.chatHeaderInfo {
+  flex: 1;
+}
+
+.chatHeaderInfo small {
+  color: #64748b;
+}
+
+.inviteButton {
+  white-space: nowrap;
+  font-size: 14px;
+}
+
+@media (max-width: 768px) {
+  .hideAddOnMobile {
+    display: none;
+  }
+}
+.joinRoomButton {
+  margin-top: 10px;
+  padding: 8px 12px;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+}
+
+.deleteRoomButton {
+  margin-top: 8px;
+  padding: 8px 12px;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+}
+
+.chatroomCard {
+  width: 100%;
+  padding: 18px;
+  border: 1px solid #e5e7eb;
+  border-radius: 18px;
+  background: white;
+  text-align: left;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.04);
+  margin-bottom: 16px;
+}
+
+.chatroomCard:hover {
+  border-color: #3b82f6;
+  box-shadow: 0 8px 22px rgba(59, 130, 246, 0.12);
+}
+
+.activeRoom {
+  border-color: #3b82f6;
+}
+
+.roomCardTop {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 12px;
+}
+
+.roomCardTop h3 {
+  margin: 0;
+  font-size: 20px;
+  font-weight: 700;
+  color: #111827;
+}
+
+.roomCreator {
+  margin: 6px 0 0;
+  font-size: 14px;
+  color: #6b7280;
+}
+
+.roomDescription {
+  margin: 12px 0 16px;
+  font-size: 14px;
+  color: #4b5563;
+  line-height: 1.5;
+}
+
+.roomBadge {
+  padding: 5px 10px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.privateBadge {
+  color: #7f1d1d;
+  background: #fee2e2;
+}
+
+.publicBadge {
+  color: #065f46;
+  background: #d1fae5;
+}
+
+.roomActions {
+  display: flex;
+  gap: 10px;
+}
+
+.joinRoomButton,
+.deleteRoomButton {
+  border: none;
+  border-radius: 999px;
+  padding: 8px 16px;
+  color: white;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.deleteRoomButton {
+  background: #ef4444;
+}
+
+.deleteRoomButton:hover {
+  background: #dc2626;
+}
+
+.joinedRoomButton {
+  background: #10b981;
+}
+
+.joinedRoomButton:hover {
+  background: #059669;
+}
+
+.leaveRoomButton {
+  border: none;
+  border-radius: 999px;
+  padding: 8px 16px;
+  color: white;
+  font-weight: 700;
+  cursor: pointer;
+  background: #6b7280;
+}
+
+.leaveRoomButton:hover {
+  background: #4b5563;
+}
