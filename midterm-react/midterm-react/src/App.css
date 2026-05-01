@@ -61,7 +61,7 @@ input {
   object-fit: cover;
 }
 
-/* Chat layout */
+/* Main Layout */
 
 .mainLayout {
   height: calc(100vh - 64px);
@@ -69,15 +69,80 @@ input {
   grid-template-columns: 300px 1fr;
 }
 
+/* Sidebar / Chatrooms */
+
 .sidebar {
   background: white;
   border-right: 1px solid #ddd;
   padding: 20px;
+  height: calc(100vh - 64px);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
 }
+
+.chatroomList {
+  flex: 1;
+  margin-top: 16px;
+  overflow-y: auto;
+  padding: 8px;
+}
+
+.chatroomList::-webkit-scrollbar {
+  width: 10px;
+}
+
+.chatroomList::-webkit-scrollbar-track {
+  background: #eee;
+  border-radius: 999px;
+}
+
+.chatroomList::-webkit-scrollbar-thumb {
+  background: #999;
+  border-radius: 999px;
+}
+
+.chatroomCard {
+  display: block;
+  width: 100%;
+  padding: 12px;
+  margin-bottom: 12px;
+  border-radius: 12px;
+  border: 1px solid #ddd;
+  background: white;
+  color: #222;
+  text-align: left;
+  cursor: pointer;
+}
+
+.chatroomCard h3 {
+  margin: 0 0 4px;
+  color: #222;
+  font-size: 16px;
+}
+
+.chatroomCard p {
+  margin: 0;
+  color: #777;
+  font-size: 12px;
+}
+
+.activeRoom {
+  border: 2px solid #333;
+}
+
+/* Chat Panel */
 
 .chatPanel {
   display: flex;
   flex-direction: column;
+}
+
+.emptyChatPanel {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #777;
 }
 
 .chatHeader {
@@ -102,6 +167,21 @@ input {
   overflow-y: auto;
 }
 
+.messageBubble {
+  background: white;
+  padding: 10px 12px;
+  border-radius: 12px;
+  margin-bottom: 10px;
+}
+
+.messageBubble p {
+  margin: 4px 0;
+}
+
+.messageBubble small {
+  color: #777;
+}
+
 .messageInputBar {
   display: flex;
   gap: 12px;
@@ -112,6 +192,20 @@ input {
 
 .messageInputBar input {
   flex: 1;
+}
+
+/* Floating Button */
+
+.floatingAddButton {
+  position: fixed;
+  left: 24px;
+  bottom: 24px;
+  width: 56px;
+  height: 56px;
+  padding: 0;
+  border-radius: 50%;
+  font-size: 32px;
+  line-height: 1;
 }
 
 /* Profile */
@@ -134,7 +228,7 @@ input {
   width: 100%;
 }
 
-/* Auth modal */
+/* Modal */
 
 .modalOverlay {
   position: fixed;
@@ -145,8 +239,9 @@ input {
   justify-content: center;
 }
 
-.authModal {
-  width: 360px;
+.authModal,
+.createRoomModal {
+  position: relative;
   background: white;
   padding: 28px;
   border-radius: 18px;
@@ -155,12 +250,45 @@ input {
   gap: 12px;
 }
 
+.authModal {
+  width: 360px;
+}
+
+.createRoomModal {
+  min-width: 300px;
+}
+
+.createRoomModal input {
+  width: 100%;
+}
+
 .authModal h2 {
   margin-top: 0;
 }
 
 .authModal p {
   color: #dc2626;
+  font-size: 14px;
+}
+
+.closeButton {
+  position: absolute;
+  top: 14px;
+  right: 16px;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  border-radius: 50%;
+  background: #e5e7eb;
+  color: #111827;
+  font-size: 22px;
+  line-height: 1;
+}
+
+/* Text */
+
+.emptyText {
+  color: #777;
   font-size: 14px;
 }
 
@@ -190,21 +318,12 @@ input {
   }
 }
 
-.authModal {
-  position: relative;
-}
-
-.closeButton {
-  position: absolute !important;
-  top: 14px;
-  right: 16px;
-  width: 32px !important;
-  height: 32px !important;
-  padding: 0 !important;
-  border-radius: 50% !important;
-  background: #e5e7eb !important;
-  color: #111827 !important;
-  font-size: 22px !important;
-  line-height: 1 !important;
-  z-index: 100;
+.deleteRoomButton {
+  display: inline-block;
+  margin-top: 8px;
+  padding: 4px 8px;
+  border-radius: 6px;
+  background: #ef4444;
+  color: white;
+  font-size: 12px;
 }

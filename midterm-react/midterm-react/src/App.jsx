@@ -92,7 +92,7 @@ function App() {
       />
 
       {page === "chat" ? (
-        <ChatPage profile={profile} />
+        <ChatPage profile={profile} user={user} />
       ) : (
         <ProfilePage
           user={user}
