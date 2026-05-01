@@ -8,9 +8,22 @@ body {
   background: #f4f6f8;
 }
 
-.app {
-  min-height: 100vh;
+button {
+  border: none;
+  border-radius: 8px;
+  padding: 9px 14px;
+  cursor: pointer;
+  background: #3b82f6;
+  color: white;
 }
+
+input {
+  padding: 12px;
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+}
+
+/* Navbar */
 
 .navbar {
   height: 64px;
@@ -37,48 +50,18 @@ body {
 .avatarButton {
   width: 38px;
   height: 38px;
+  padding: 0;
   border-radius: 50%;
-  border: none;
-  background: #3b82f6;
-  color: white;
-  cursor: pointer;
   overflow: hidden;
-  display: flex;
-  align-items: center;
-  justify-content: center;
 }
 
-.avatarButton img,
-.chatUserBadge img,
-.bigAvatar img {
+.avatarButton img {
   width: 100%;
   height: 100%;
   object-fit: cover;
 }
 
-.loginButton,
-.addRoomButton,
-.messageInputBar button,
-.saveButton,
-.secondaryButton {
-  border: none;
-  padding: 9px 14px;
-  border-radius: 8px;
-  cursor: pointer;
-}
-
-.loginButton,
-.addRoomButton,
-.messageInputBar button,
-.saveButton {
-  background: #3b82f6;
-  color: white;
-}
-
-.secondaryButton {
-  background: #e5e7eb;
-  color: #111827;
-}
+/* Chat layout */
 
 .mainLayout {
   height: calc(100vh - 64px);
@@ -87,60 +70,20 @@ body {
 }
 
 .sidebar {
-  background: #ffffff;
+  background: white;
   border-right: 1px solid #ddd;
   padding: 20px;
-  overflow-y: auto;
-}
-
-.sidebarHeader {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-}
-
-.sidebarHeader h2 {
-  margin: 0;
-}
-
-.roomList {
-  margin-top: 18px;
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-}
-
-.roomCard {
-  padding: 14px;
-  border-radius: 12px;
-  background: #f1f5f9;
-  cursor: pointer;
-}
-
-.roomCard h3 {
-  margin: 0 0 6px;
-  font-size: 16px;
-}
-
-.roomCard p {
-  margin: 0;
-  color: #64748b;
-  font-size: 14px;
 }
 
 .chatPanel {
   display: flex;
   flex-direction: column;
-  min-width: 0;
 }
 
 .chatHeader {
   background: white;
   padding: 18px 24px;
   border-bottom: 1px solid #ddd;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
 }
 
 .chatHeader h2,
@@ -153,26 +96,10 @@ body {
   color: #64748b;
 }
 
-.chatUserBadge {
-  width: 42px;
-  height: 42px;
-  border-radius: 50%;
-  background: #3b82f6;
-  color: white;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  overflow: hidden;
-}
-
 .messageArea {
   flex: 1;
   padding: 24px;
   overflow-y: auto;
-}
-
-.emptyText {
-  color: #64748b;
 }
 
 .messageInputBar {
@@ -185,85 +112,59 @@ body {
 
 .messageInputBar input {
   flex: 1;
-  padding: 12px;
-  border: 1px solid #ccc;
-  border-radius: 8px;
 }
 
-/* Profile Page */
+/* Profile */
 
 .profilePage {
   min-height: calc(100vh - 64px);
   padding: 32px;
   display: flex;
-  justify-content: center;
-  align-items: flex-start;
+  flex-direction: column;
+  gap: 14px;
+  max-width: 560px;
+  margin: 0 auto;
 }
 
-.profileCard {
+.profilePage h2 {
+  margin-bottom: 8px;
+}
+
+.profilePage input {
   width: 100%;
-  max-width: 560px;
+}
+
+/* Auth modal */
+
+.modalOverlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.45);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.authModal {
+  width: 360px;
   background: white;
   padding: 28px;
   border-radius: 18px;
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.08);
-}
-
-.profileCard h2 {
-  margin-top: 0;
-}
-
-.profileHint {
-  color: #64748b;
-}
-
-.profilePreview {
   display: flex;
-  align-items: center;
-  gap: 16px;
-  padding: 16px;
-  background: #f8fafc;
-  border-radius: 14px;
-  margin: 20px 0;
-}
-
-.bigAvatar {
-  width: 72px;
-  height: 72px;
-  border-radius: 50%;
-  background: #3b82f6;
-  color: white;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  overflow: hidden;
-  font-size: 28px;
-  font-weight: bold;
-}
-
-.profileCard label {
-  display: block;
-  margin: 14px 0 6px;
-  font-weight: bold;
-}
-
-.profileCard input {
-  width: 100%;
-  padding: 12px;
-  border: 1px solid #cbd5e1;
-  border-radius: 8px;
-}
-
-.profileActions {
-  margin-top: 22px;
-  display: flex;
-  justify-content: flex-end;
+  flex-direction: column;
   gap: 12px;
 }
 
-.saveMessage {
-  color: #2563eb;
+.authModal h2 {
+  margin-top: 0;
 }
+
+.authModal p {
+  color: #dc2626;
+  font-size: 14px;
+}
+
+/* RWD */
 
 @media (max-width: 768px) {
   .mainLayout {
@@ -271,7 +172,7 @@ body {
   }
 
   .sidebar {
-    height: 220px;
+    height: 180px;
     border-right: none;
     border-bottom: 1px solid #ddd;
   }
@@ -285,6 +186,25 @@ body {
   }
 
   .profilePage {
-    padding: 16px;
+    padding: 20px;
   }
+}
+
+.authModal {
+  position: relative;
+}
+
+.closeButton {
+  position: absolute !important;
+  top: 14px;
+  right: 16px;
+  width: 32px !important;
+  height: 32px !important;
+  padding: 0 !important;
+  border-radius: 50% !important;
+  background: #e5e7eb !important;
+  color: #111827 !important;
+  font-size: 22px !important;
+  line-height: 1 !important;
+  z-index: 100;
 }

@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import "./App.css";
 import { auth, db } from "./firebase";
-import { onAuthStateChanged } from "firebase/auth";
+import { onAuthStateChanged, signOut } from "firebase/auth";
 import { doc, getDoc, setDoc } from "firebase/firestore";
 
 import Navbar from "./components/Navbar";
@@ -13,6 +13,7 @@ function App() {
   const [page, setPage] = useState("chat");
   const [user, setUser] = useState(null);
   const [showAuthModal, setShowAuthModal] = useState(false);
+  const [authMode, setAuthMode] = useState("signin");
 
   const [profile, setProfile] = useState({
     photoURL: "",
@@ -36,18 +37,48 @@ function App() {
           const newProfile = {
             photoURL: "",
             username: "",
-            email: currentUser.email,
+            email: currentUser.email || "",
             phone: "",
             address: "",
           };
+
           await setDoc(ref, newProfile);
           setProfile(newProfile);
         }
+      } else {
+        setProfile({
+          photoURL: "",
+          username: "",
+          email: "",
+          phone: "",
+          address: "",
+        });
+        setPage("chat");
       }
     });
 
     return () => unsubscribe();
   }, []);
+
+  const openSignInModal = () => {
+    setAuthMode("signin");
+    setShowAuthModal(true);
+  };
+
+  const openSignUpModal = () => {
+    setAuthMode("signup");
+    setShowAuthModal(true);
+  };
+
+  const closeAuthModal = () => {
+    setShowAuthModal(false);
+  };
+
+  const handleLogout = async () => {
+    await signOut(auth);
+    setShowAuthModal(false);
+    setPage("chat");
+  };
 
   return (
     <div>
@@ -55,7 +86,9 @@ function App() {
         user={user}
         profile={profile}
         setPage={setPage}
-        setShowAuthModal={setShowAuthModal}
+        openSignInModal={openSignInModal}
+        openSignUpModal={openSignUpModal}
+        handleLogout={handleLogout}
       />
 
       {page === "chat" ? (
@@ -70,9 +103,7 @@ function App() {
       )}
 
       {showAuthModal && (
-        <AuthModal
-          setShowAuthModal={setShowAuthModal}
-        />
+        <AuthModal mode={authMode} closeAuthModal={closeAuthModal} />
       )}
     </div>
   );
