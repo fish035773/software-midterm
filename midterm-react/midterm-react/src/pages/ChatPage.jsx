@@ -13,10 +13,20 @@ import {
   arrayUnion,
   arrayRemove,
 } from "firebase/firestore";
-import { db } from "../firebase";
+import {
+  ref,
+  uploadBytes,
+  getDownloadURL,
+  deleteObject,
+} from "firebase/storage";
+import { db, storage } from "../firebase";
 
 function ChatPage({ profile, user, onLoginRequired }) {
-  const displayName = profile.username || profile.email || "Guest";
+  const displayName =
+    profile.username ||
+    user?.displayName ||
+    user?.email?.split("@")[0] ||
+    "Guest";
 
   const [chatrooms, setChatrooms] = useState([]);
   const [selectedRoomId, setSelectedRoomId] = useState(null);
@@ -36,25 +46,46 @@ function ChatPage({ profile, user, onLoginRequired }) {
   const [joiningRoom, setJoiningRoom] = useState(null);
   const [joinPassword, setJoinPassword] = useState("");
 
+  const [notificationEnabled, setNotificationEnabled] = useState(false);
+
+  const [editingMessageId, setEditingMessageId] = useState(null);
+  const [editingText, setEditingText] = useState("");
+  const [searchText, setSearchText] = useState("");
+  const [uploadingImage, setUploadingImage] = useState(false);
+
   const lastMessageCountRef = useRef(0);
   const isInitialLoadRef = useRef(true);
+  const imageInputRef = useRef(null);
 
   const selectedRoom =
     chatrooms.find((room) => room.id === selectedRoomId) ||
     selectedRoomFromInvite;
 
+  const filteredMessages = messages.filter((message) => {
+    const keyword = searchText.trim().toLowerCase();
+
+    if (!keyword) return true;
+
+    return (
+      message.text?.toLowerCase().includes(keyword) ||
+      message.sender?.toLowerCase().includes(keyword)
+    );
+  });
+
   const isRoomOwner = (room) => room.createdByUid === user?.uid;
   const isJoinedRoom = (room) => room.members?.includes(user?.uid);
   const canEnterRoom = (room) => isRoomOwner(room) || isJoinedRoom(room);
+  const isMyMessage = (message) => message.senderUid === user?.uid;
 
-  const requestNotificationPermission = async () => {
-    if (!("Notification" in window)) {
-      alert("這個瀏覽器不支援 Chrome 通知");
+  const toggleNotification = async () => {
+    if (notificationEnabled) {
+      setNotificationEnabled(false);
+      alert("已關閉聊天室通知");
       return;
     }
 
-    if (Notification.permission === "granted") {
-      alert("通知已經開啟");
+    if (!("Notification" in window)) {
+      alert("這個瀏覽器不支援 Chrome 通知");
       return;
     }
 
@@ -63,11 +94,17 @@ function ChatPage({ profile, user, onLoginRequired }) {
       return;
     }
 
-    const permission = await Notification.requestPermission();
+    if (Notification.permission === "default") {
+      const permission = await Notification.requestPermission();
 
-    if (permission === "granted") {
-      alert("通知已開啟");
+      if (permission !== "granted") {
+        alert("你沒有允許通知");
+        return;
+      }
     }
+
+    setNotificationEnabled(true);
+    alert("已開啟聊天室通知");
   };
 
   useEffect(() => {
@@ -168,13 +205,16 @@ function ChatPage({ profile, user, onLoginRequired }) {
         const pageIsHidden = document.hidden;
 
         if (
+          notificationEnabled &&
           isFromOtherUser &&
           pageIsHidden &&
           "Notification" in window &&
           Notification.permission === "granted"
         ) {
           new Notification("你有新的未讀訊息", {
-            body: `${newestMessage.sender}: ${newestMessage.text}`,
+            body: `${newestMessage.sender}: ${
+              newestMessage.type === "image" ? "傳送了一張圖片" : newestMessage.text
+            }`,
           });
         }
       }
@@ -183,17 +223,19 @@ function ChatPage({ profile, user, onLoginRequired }) {
     });
 
     return () => unsubscribe();
-  }, [selectedRoomId, user]);
+  }, [selectedRoomId, user, notificationEnabled]);
 
   const selectRoom = (roomId) => {
     setSelectedRoomFromInvite(null);
     setSelectedRoomId(roomId);
+    setSearchText("");
     window.history.pushState({}, "", `?room=${roomId}`);
   };
 
   const backToRoomList = () => {
     setSelectedRoomId(null);
     setSelectedRoomFromInvite(null);
+    setSearchText("");
     window.history.pushState({}, "", window.location.pathname);
   };
 
@@ -326,13 +368,116 @@ function ChatPage({ profile, user, onLoginRequired }) {
     }
 
     await addDoc(collection(db, "chatrooms", selectedRoomId, "messages"), {
+      type: "text",
       text: messageText.trim(),
       sender: displayName,
       senderUid: user.uid,
       createdAt: serverTimestamp(),
+      edited: false,
     });
 
     setMessageText("");
+  };
+
+  const sendImage = async (e) => {
+    const file = e.target.files?.[0];
+
+    if (!file) return;
+
+    if (!user) {
+      onLoginRequired?.();
+      return;
+    }
+
+    if (!selectedRoomId) return;
+
+    if (!file.type.startsWith("image/")) {
+      alert("只能上傳圖片");
+      return;
+    }
+
+    const room = selectedRoom;
+
+    if (room && !canEnterRoom(room)) {
+      alert("請先加入聊天室");
+      return;
+    }
+
+    try {
+      setUploadingImage(true);
+
+      const filePath = `chatrooms/${selectedRoomId}/images/${Date.now()}_${file.name}`;
+      const imageRef = ref(storage, filePath);
+
+      await uploadBytes(imageRef, file);
+      const imageUrl = await getDownloadURL(imageRef);
+
+      await addDoc(collection(db, "chatrooms", selectedRoomId, "messages"), {
+        type: "image",
+        text: "",
+        imageUrl,
+        imagePath: filePath,
+        sender: displayName,
+        senderUid: user.uid,
+        createdAt: serverTimestamp(),
+        edited: false,
+      });
+    } catch (error) {
+      alert(error.message);
+    } finally {
+      setUploadingImage(false);
+
+      if (imageInputRef.current) {
+        imageInputRef.current.value = "";
+      }
+    }
+  };
+
+  const startEditMessage = (message) => {
+    if (!isMyMessage(message)) return;
+
+    if (message.type === "image") {
+      alert("圖片不能編輯，只能收回");
+      return;
+    }
+
+    setEditingMessageId(message.id);
+    setEditingText(message.text || "");
+  };
+
+  const cancelEditMessage = () => {
+    setEditingMessageId(null);
+    setEditingText("");
+  };
+
+  const saveEditedMessage = async (messageId) => {
+    if (!editingText.trim()) return;
+
+    await updateDoc(doc(db, "chatrooms", selectedRoomId, "messages", messageId), {
+      text: editingText.trim(),
+      edited: true,
+      editedAt: serverTimestamp(),
+    });
+
+    setEditingMessageId(null);
+    setEditingText("");
+  };
+
+  const unsendMessage = async (message) => {
+    if (!isMyMessage(message)) return;
+
+    const confirmUnsend = window.confirm("確定要收回這則訊息嗎？");
+    if (!confirmUnsend) return;
+
+    if (message.type === "image" && message.imagePath) {
+      try {
+        await deleteObject(ref(storage, message.imagePath));
+      } catch (error) {
+        console.warn("圖片檔案刪除失敗，但訊息仍會刪除：", error);
+      }
+    }
+
+    await deleteDoc(doc(db, "chatrooms", selectedRoomId, "messages", message.id));
   };
 
   const deleteChatroom = async (roomId) => {
@@ -483,26 +628,105 @@ function ChatPage({ profile, user, onLoginRequired }) {
 
             <button
               type="button"
-              className="notifyButton"
-              onClick={requestNotificationPermission}
+              className={
+                notificationEnabled
+                  ? "notifyButton notifyButtonOn"
+                  : "notifyButton"
+              }
+              onClick={toggleNotification}
             >
-              開啟通知
+              {notificationEnabled ? "關閉通知" : "開啟通知"}
             </button>
           </div>
 
+          <div className="searchBar">
+            <input
+              type="text"
+              placeholder="搜尋訊息或使用者"
+              value={searchText}
+              onChange={(e) => setSearchText(e.target.value)}
+            />
+
+            {searchText && (
+              <button type="button" onClick={() => setSearchText("")}>
+                清除
+              </button>
+            )}
+          </div>
+
           <div className="messageArea">
-            {messages.length === 0 ? (
-              <p className="emptyText">目前還沒有訊息</p>
+            {filteredMessages.length === 0 ? (
+              <p className="emptyText">
+                {searchText ? "找不到符合的訊息" : "目前還沒有訊息"}
+              </p>
             ) : (
-              messages.map((message) => (
-                <div key={message.id} className="messageBubble">
+              filteredMessages.map((message) => (
+                <div
+                  key={message.id}
+                  className={
+                    isMyMessage(message)
+                      ? "messageBubble myMessage"
+                      : "messageBubble"
+                  }
+                >
                   <strong>{message.sender}</strong>
-                  <p className="messageText">{message.text}</p>
+
+                  {editingMessageId === message.id ? (
+                    <div className="editMessageBox">
+                      <input
+                        value={editingText}
+                        onChange={(e) => setEditingText(e.target.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter") {
+                            saveEditedMessage(message.id);
+                          }
+                        }}
+                      />
+
+                      <button
+                        type="button"
+                        onClick={() => saveEditedMessage(message.id)}
+                      >
+                        儲存
+                      </button>
+
+                      <button type="button" onClick={cancelEditMessage}>
+                        取消
+                      </button>
+                    </div>
+                  ) : message.type === "image" ? (
+                    <img
+                      className="messageImage"
+                      src={message.imageUrl}
+                      alt="聊天圖片"
+                    />
+                  ) : (
+                    <p className="messageText">{message.text}</p>
+                  )}
+
                   <small>
                     {message.createdAt?.toDate
                       ? message.createdAt.toDate().toLocaleTimeString()
                       : ""}
+                    {message.edited ? "（已編輯）" : ""}
                   </small>
+
+                  {isMyMessage(message) && editingMessageId !== message.id && (
+                    <div className="messageActions">
+                      {message.type !== "image" && (
+                        <button
+                          type="button"
+                          onClick={() => startEditMessage(message)}
+                        >
+                          編輯
+                        </button>
+                      )}
+
+                      <button type="button" onClick={() => unsendMessage(message)}>
+                        收回
+                      </button>
+                    </div>
+                  )}
                 </div>
               ))
             )}
@@ -519,6 +743,22 @@ function ChatPage({ profile, user, onLoginRequired }) {
                 }
               }}
             />
+
+            <input
+              ref={imageInputRef}
+              type="file"
+              accept="image/*"
+              className="hiddenFileInput"
+              onChange={sendImage}
+            />
+
+            <button
+              type="button"
+              onClick={() => imageInputRef.current?.click()}
+              disabled={uploadingImage}
+            >
+              {uploadingImage ? "上傳中" : "圖片"}
+            </button>
 
             <button type="button" onClick={sendMessage}>
               送出
