@@ -92,7 +92,11 @@ function App() {
       />
 
       {page === "chat" ? (
-        <ChatPage profile={profile} user={user} />
+        <ChatPage
+          profile={profile}
+          user={user}
+          onLoginRequired={openSignInModal}
+        />
       ) : (
         <ProfilePage
           user={user}

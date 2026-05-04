@@ -2,13 +2,18 @@ import { useState } from "react";
 import {
   createUserWithEmailAndPassword,
   signInWithEmailAndPassword,
+  signInWithPopup,
 } from "firebase/auth";
-import { auth } from "../firebase";
+import { auth, googleProvider } from "../firebase";
 
 function AuthModal({ mode, closeAuthModal }) {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [msg, setMsg] = useState("");
+
+  const loginWithGoogle = async () => {
+    await signInWithPopup(auth, googleProvider);
+  };
 
   const handleSignUp = async () => {
     try {
@@ -64,6 +69,10 @@ function AuthModal({ mode, closeAuthModal }) {
             註冊
           </button>
         )}
+
+        <button type="button" onClick={loginWithGoogle}>
+          Sign in with Google
+        </button>
 
         <p>{msg}</p>
       </div>

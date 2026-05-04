@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import {
   collection,
   addDoc,
@@ -7,6 +7,7 @@ import {
   orderBy,
   onSnapshot,
   doc,
+  getDoc,
   deleteDoc,
   updateDoc,
   arrayUnion,
@@ -14,11 +15,12 @@ import {
 } from "firebase/firestore";
 import { db } from "../firebase";
 
-function ChatPage({ profile, user }) {
+function ChatPage({ profile, user, onLoginRequired }) {
   const displayName = profile.username || profile.email || "Guest";
 
   const [chatrooms, setChatrooms] = useState([]);
   const [selectedRoomId, setSelectedRoomId] = useState(null);
+  const [selectedRoomFromInvite, setSelectedRoomFromInvite] = useState(null);
   const [messages, setMessages] = useState([]);
 
   const [showCreateBox, setShowCreateBox] = useState(false);
@@ -34,9 +36,9 @@ function ChatPage({ profile, user }) {
   const [joiningRoom, setJoiningRoom] = useState(null);
   const [joinPassword, setJoinPassword] = useState("");
 
-  const handledInviteRef = useRef(false);
-
-  const selectedRoom = chatrooms.find((room) => room.id === selectedRoomId);
+  const selectedRoom =
+    chatrooms.find((room) => room.id === selectedRoomId) ||
+    selectedRoomFromInvite;
 
   const isRoomOwner = (room) => room.createdByUid === user?.uid;
   const isJoinedRoom = (room) => room.members?.includes(user?.uid);
@@ -58,37 +60,50 @@ function ChatPage({ profile, user }) {
   }, []);
 
   useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
-    const roomIdFromUrl = params.get("room");
+    const openRoomFromInvite = async () => {
+      const params = new URLSearchParams(window.location.search);
+      const roomIdFromUrl = params.get("room");
 
-    if (!roomIdFromUrl) return;
-    if (handledInviteRef.current) return;
-    if (chatrooms.length === 0) return;
+      if (!roomIdFromUrl) return;
 
-    const targetRoom = chatrooms.find((room) => room.id === roomIdFromUrl);
+      const roomRef = doc(db, "chatrooms", roomIdFromUrl);
+      const roomSnap = await getDoc(roomRef);
 
-    if (!targetRoom) {
-      window.history.replaceState({}, "", window.location.pathname);
-      handledInviteRef.current = true;
-      return;
-    }
+      if (!roomSnap.exists()) {
+        window.history.replaceState({}, "", window.location.pathname);
+        return;
+      }
 
-    handledInviteRef.current = true;
+      const targetRoom = {
+        id: roomSnap.id,
+        ...roomSnap.data(),
+      };
 
-    if (canEnterRoom(targetRoom)) {
-      selectRoom(targetRoom.id);
-      return;
-    }
+      setSelectedRoomId(targetRoom.id);
+      setSelectedRoomFromInvite(targetRoom);
 
-    if (targetRoom.visibility === "private") {
-      setJoiningRoom(targetRoom);
-      setJoinPassword("");
-      setShowPasswordBox(true);
-      return;
-    }
+      if (!user) {
+        onLoginRequired?.();
+        return;
+      }
 
-    joinRoom(targetRoom);
-  }, [chatrooms, user]);
+      if (
+        targetRoom.createdByUid !== user.uid &&
+        !targetRoom.members?.includes(user.uid)
+      ) {
+        await updateDoc(roomRef, {
+          members: arrayUnion(user.uid),
+        });
+
+        setSelectedRoomFromInvite({
+          ...targetRoom,
+          members: [...(targetRoom.members || []), user.uid],
+        });
+      }
+    };
+
+    openRoomFromInvite();
+  }, [user, onLoginRequired]);
 
   useEffect(() => {
     if (!selectedRoomId) {
@@ -114,18 +129,20 @@ function ChatPage({ profile, user }) {
   }, [selectedRoomId]);
 
   const selectRoom = (roomId) => {
+    setSelectedRoomFromInvite(null);
     setSelectedRoomId(roomId);
     window.history.pushState({}, "", `?room=${roomId}`);
   };
 
   const backToRoomList = () => {
     setSelectedRoomId(null);
+    setSelectedRoomFromInvite(null);
     window.history.pushState({}, "", window.location.pathname);
   };
 
   const joinRoom = async (room) => {
     if (!user) {
-      alert("請先登入");
+      onLoginRequired?.();
       return;
     }
 
@@ -169,7 +186,12 @@ function ChatPage({ profile, user }) {
   };
 
   const confirmJoinPrivateRoom = async () => {
-    if (!joiningRoom || !user) return;
+    if (!joiningRoom) return;
+
+    if (!user) {
+      onLoginRequired?.();
+      return;
+    }
 
     if (joinPassword !== joiningRoom.password) {
       alert("密碼錯誤");
@@ -187,14 +209,19 @@ function ChatPage({ profile, user }) {
   };
 
   const createChatroom = async () => {
-    if (!roomName.trim() || !user) return;
+    if (!user) {
+      onLoginRequired?.();
+      return;
+    }
+
+    if (!roomName.trim()) return;
 
     if (roomVisibility === "private" && !roomPassword.trim()) {
       alert("Private chatroom 需要設定密碼");
       return;
     }
 
-    const docRef = await addDoc(collection(db, "chatrooms"), {
+    const newRoomData = {
       name: roomName.trim(),
       description: roomDescription.trim(),
       visibility: roomVisibility,
@@ -202,10 +229,22 @@ function ChatPage({ profile, user }) {
       createdBy: displayName,
       createdByUid: user.uid,
       members: [user.uid],
+    };
+
+    const docRef = await addDoc(collection(db, "chatrooms"), {
+      ...newRoomData,
       createdAt: serverTimestamp(),
     });
 
-    selectRoom(docRef.id);
+    const newRoom = {
+      id: docRef.id,
+      ...newRoomData,
+      createdAt: new Date(),
+    };
+
+    setSelectedRoomFromInvite(newRoom);
+    setSelectedRoomId(docRef.id);
+    window.history.pushState({}, "", `?room=${docRef.id}`);
 
     setRoomName("");
     setRoomDescription("");
@@ -215,12 +254,24 @@ function ChatPage({ profile, user }) {
   };
 
   const sendMessage = async () => {
+    if (!user) {
+      onLoginRequired?.();
+      return;
+    }
+
     if (!messageText.trim() || !selectedRoomId) return;
+
+    const room = selectedRoom;
+
+    if (room && !canEnterRoom(room)) {
+      alert("請先加入聊天室");
+      return;
+    }
 
     await addDoc(collection(db, "chatrooms", selectedRoomId, "messages"), {
       text: messageText.trim(),
       sender: displayName,
-      senderUid: user?.uid || "",
+      senderUid: user.uid,
       createdAt: serverTimestamp(),
     });
 
@@ -334,69 +385,82 @@ function ChatPage({ profile, user }) {
         </div>
       </aside>
 
-      {selectedRoom ? (
-        <section className="chatPanel showChatOnMobile">
-          <div className="chatHeader">
-            <button
-              type="button"
-              className="backToRoomsButton"
-              onClick={backToRoomList}
-            >
-              ←
-            </button>
+      
+      {selectedRoom && !user ? (
+        <section className="chatPanel emptyChatPanel">
+          <h2>請先登入才能加入聊天室</h2>
 
-            <div className="chatHeaderInfo">
-              <h2>{selectedRoom.name}</h2>
-              <p>{selectedRoom.description || "No description"}</p>
-              <small>
-                {selectedRoom.visibility === "private" ? "Private" : "Public"}
-              </small>
-            </div>
-
-            <button
-              type="button"
-              className="inviteButton"
-              onClick={copyInviteLink}
-            >
-              {copied ? "已複製" : "複製邀請連結"}
-            </button>
-          </div>
-
-          <div className="messageArea">
-            {messages.length === 0 ? (
-              <p className="emptyText">目前還沒有訊息</p>
-            ) : (
-              messages.map((message) => (
-                <div key={message.id} className="messageBubble">
-                  <strong>{message.sender}</strong>
-                  <p>{message.text}</p>
-                  <small>
-                    {message.createdAt?.toDate
-                      ? message.createdAt.toDate().toLocaleTimeString()
-                      : ""}
-                  </small>
-                </div>
-              ))
-            )}
-          </div>
-
-          <div className="messageInputBar">
-            <input
-              placeholder="輸入訊息"
-              value={messageText}
-              onChange={(e) => setMessageText(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === "Enter") {
-                  sendMessage();
-                }
-              }}
-            />
-
-            <button type="button" onClick={sendMessage}>
-              送出
-            </button>
-          </div>
+          <button
+            type="button"
+            className="inviteButton"
+            onClick={onLoginRequired}
+          >
+            登入
+          </button>
         </section>
+      ) : selectedRoom ? (
+      <section className="chatPanel showChatOnMobile">
+        <div className="chatHeader">
+          <button
+            type="button"
+            className="backToRoomsButton"
+            onClick={backToRoomList}
+          >
+            ←
+          </button>
+
+          <div className="chatHeaderInfo">
+            <h2>{selectedRoom.name}</h2>
+            <p>{selectedRoom.description || "No description"}</p>
+            <small>
+              {selectedRoom.visibility === "private" ? "Private" : "Public"}
+            </small>
+          </div>
+
+          <button
+            type="button"
+            className="inviteButton"
+            onClick={copyInviteLink}
+          >
+            {copied ? "已複製" : "複製邀請連結"}
+          </button>
+        </div>
+
+        <div className="messageArea">
+          {messages.length === 0 ? (
+            <p className="emptyText">目前還沒有訊息</p>
+          ) : (
+            messages.map((message) => (
+              <div key={message.id} className="messageBubble">
+                <strong>{message.sender}</strong>
+                <p>{message.text}</p>
+                <small>
+                  {message.createdAt?.toDate
+                    ? message.createdAt.toDate().toLocaleTimeString()
+                    : ""}
+                </small>
+              </div>
+            ))
+          )}
+        </div>
+
+        <div className="messageInputBar">
+          <input
+            placeholder="輸入訊息"
+            value={messageText}
+            onChange={(e) => setMessageText(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") {
+                sendMessage();
+              }
+            }}
+          />
+
+          <button type="button" onClick={sendMessage}>
+            送出
+          </button>
+        </div>
+      </section>
       ) : (
         <section className="chatPanel emptyChatPanel">
           <h2>請先選擇或建立聊天室</h2>
