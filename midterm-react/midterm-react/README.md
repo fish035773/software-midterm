@@ -1,16 +1,219 @@
-# React + Vite
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+# 網站功能與使用方式
 
-Currently, two official plugins are available:
+## 1. 使用者登入
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+進入網站後須先登入才能使用，否則將不顯示任何聊天內容。
+登入功能：
+1. Google登入
+2. 註冊後登入
 
-## React Compiler
+---
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+## 2. 建立聊天室
 
-## Expanding the ESLint configuration
+使用者可以建立公開或私人聊天室。
 
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and [`typescript-eslint`](https://typescript-eslint.io) in your project.
+使用方式：
+
+1. 點擊左下角的 `+` 按鈕。
+2. 輸入聊天室名稱。
+3. 輸入聊天室介紹（選填）。
+4. 選擇 `Public` 或 `Private`。
+5. 如果選擇 `Private`，需要設定密碼。
+6. 點擊 `Create` 建立聊天室。
+
+公開聊天室可以直接加入。  
+私人聊天室需要輸入正確密碼才能加入。
+
+---
+
+## 3. 加入聊天室
+
+使用者可以從左側聊天室列表加入聊天室。
+
+使用方式：
+
+1. 在左側聊天室列表中找到想加入的聊天室。
+2. 點擊 `加入`。
+3. 如果是公開聊天室，會直接打開聊天畫面。
+4. 如果是私人聊天室，需要輸入密碼。
+5. 加入聊天室後加入按鈕會變為`已加入`。
+
+---
+
+## 4. 退出聊天室
+
+已加入聊天室的使用者可以退出聊天室。
+聊天室房主不能退出自己的聊天室，只能刪除聊天室。
+
+使用方式：
+
+1. 在聊天室列表中找到已加入的聊天室。
+2. 點擊 `退出`。
+
+---
+
+## 5. 刪除聊天室
+
+只有聊天室房主可以刪除聊天室。
+
+使用方式：
+
+1. 找到自己建立的聊天室。
+2. 點擊 `刪除`。
+3. 確認刪除。
+
+---
+
+## 6. 邀請連結
+
+每個聊天室都有邀請連結。
+
+使用方式：
+
+1. 進入聊天室。
+2. 點擊聊天室上方的 `複製邀請連結`。
+3. 將連結分享給其他使用者。
+4. 其他使用者開啟連結後，網站會自動開啟該聊天室。如果使用者尚未登入，網站會先要求登入。
+
+---
+
+## 7. 傳送文字訊息
+
+使用者可以在已加入的聊天室中傳送文字訊息。
+
+使用方式：
+
+1. 選擇一個已加入的聊天室。
+2. 在下方輸入框輸入訊息。
+3. 按下 Enter 或點擊 `送出`。
+
+---
+
+## 8. 上傳圖片
+
+使用方式：
+
+1. 進入聊天室。
+2. 點擊下方的 `圖片` 按鈕。
+3. 選擇圖片檔案。
+4. 圖片會被上傳並顯示在聊天室中。
+
+---
+
+## 9. 回覆訊息
+
+使用方式：
+
+1. 點擊訊息下方的 `回覆`。
+2. 被回覆的訊息會顯示在輸入框上方。
+3. 輸入回覆內容。
+4. 點擊 `送出`。
+
+點擊訊息中的回覆預覽，畫面會自動捲動到原訊息，並短暫高亮顯示。
+
+---
+
+## 10. Emoji 反應
+
+使用者可以對訊息加上 emoji 反應。
+
+目前支援：
+
+- 👍
+- ❤️
+- 😂
+- 😢
+
+使用方式：
+
+1. 點擊訊息下方的 emoji。
+2. 該 emoji 的數量會增加。
+3. 再次點擊同一個 emoji 可以取消反應。
+
+---
+
+## 11. 編輯訊息
+
+使用方式：
+
+1. 找到自己傳送的文字訊息。
+2. 點擊 `編輯`。
+3. 修改訊息內容。
+4. 點擊 `儲存`。
+
+編輯後的訊息會顯示 `（已編輯）`。
+
+注意：圖片訊息不能編輯，只能收回。
+
+---
+
+## 12. 收回訊息
+
+使用方式：
+
+1. 找到自己傳送的訊息。
+2. 點擊 `收回`。
+3. 確認收回。
+
+---
+
+## 13. 搜尋訊息
+
+使用方式：
+
+1. 進入聊天室。
+2. 在搜尋欄輸入關鍵字。
+3. 網站會顯示符合關鍵字的訊息。
+4. 點擊 `清除` 可以重置搜尋。
+
+搜尋範圍包含：
+
+- 訊息內容
+- 傳送者名稱
+- 被回覆的訊息內容
+- 被回覆訊息的傳送者名稱
+
+---
+
+## 14. 封鎖使用者
+
+使用方式：
+
+1. 找到其他使用者傳送的訊息。
+2. 點擊 `封鎖`。
+3. 該使用者的訊息會被隱藏。
+
+解除封鎖方式：
+
+1. 點擊 `全部解除封鎖`。
+
+---
+
+## 15. 瀏覽器通知
+
+使用方式：
+
+1. 進入聊天室。
+2. 點擊 `開啟通知`。
+3. 允許瀏覽器通知權限。
+4. 點擊 `關閉通知` 可以關閉通知。
+
+---
+
+## 16. 響應式設計
+
+網站支援較小螢幕。
+
+在小螢幕上：
+
+1. 聊天室列表和聊天室畫面會分開顯示。
+2. 點擊左上角 `←` 可以回到聊天室列表。
+3. 進入聊天室時，左下角的建立聊天室按鈕會隱藏。
+
+---
+
+# 本機執行方式
+
+點開firebase生成的網址

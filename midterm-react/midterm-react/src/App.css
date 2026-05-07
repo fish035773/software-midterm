@@ -5,22 +5,52 @@
 body {
   margin: 0;
   font-family: Arial, sans-serif;
-  background: #f4f6f8;
+  background: #f7f8fa;
+  color: #1f2937;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+  overflow: hidden;
 }
 
 button {
-  border: none;
-  border-radius: 8px;
-  padding: 9px 14px;
+  border: 1px solid #d1d5db;
+  border-radius: 999px;
+  padding: 9px 16px;
   cursor: pointer;
-  background: #3b82f6;
-  color: white;
+  background: white;
+  color: #374151;
+  font-weight: 600;
+  transition: 0.2s ease;
+  box-shadow: none;
 }
 
-input {
+button:hover {
+  background: #f3f4f6;
+  transform: translateY(-1px);
+}
+
+input,
+textarea,
+select {
+  width: 100%;
   padding: 12px;
-  border: 1px solid #cbd5e1;
-  border-radius: 8px;
+  border: 1px solid #d1d5db;
+  border-radius: 12px;
+  font-family: Arial, sans-serif;
+  outline: none;
+  background: white;
+  color: #1f2937;
+}
+
+input:focus,
+textarea:focus,
+select:focus {
+  border-color: #93c5fd;
+  box-shadow: 0 0 0 3px rgba(147, 197, 253, 0.28);
 }
 
 /* Navbar */
@@ -29,7 +59,7 @@ input {
   height: 64px;
   padding: 0 24px;
   background: white;
-  border-bottom: 1px solid #ddd;
+  border-bottom: 1px solid #e5e7eb;
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -37,8 +67,9 @@ input {
 
 .logo {
   font-size: 22px;
-  font-weight: bold;
+  font-weight: 800;
   cursor: pointer;
+  color: #111827;
 }
 
 .navRight {
@@ -61,19 +92,18 @@ input {
   object-fit: cover;
 }
 
-/* Main Layout */
+/* Layout */
 
 .mainLayout {
   height: calc(100vh - 64px);
   display: grid;
-  grid-template-columns: 300px 1fr;
+  grid-template-columns: 320px 1fr;
+  overflow: hidden;
 }
-
-/* Sidebar / Chatrooms */
 
 .sidebar {
   background: white;
-  border-right: 1px solid #ddd;
+  border-right: 1px solid #e5e7eb;
   padding: 20px;
   height: calc(100vh - 64px);
   overflow: hidden;
@@ -85,50 +115,114 @@ input {
   flex: 1;
   margin-top: 16px;
   overflow-y: auto;
-  padding: 8px;
+  padding: 8px 4px;
 }
 
 .chatroomList::-webkit-scrollbar {
-  width: 10px;
+  width: 8px;
 }
 
 .chatroomList::-webkit-scrollbar-track {
-  background: #eee;
+  background: #f3f4f6;
   border-radius: 999px;
 }
 
 .chatroomList::-webkit-scrollbar-thumb {
-  background: #999;
+  background: #cbd5e1;
   border-radius: 999px;
 }
 
+/* Chatroom Card */
+
 .chatroomCard {
-  display: block;
   width: 100%;
-  padding: 12px;
-  margin-bottom: 12px;
-  border-radius: 12px;
-  border: 1px solid #ddd;
+  padding: 18px;
+  border: 1px solid #e5e7eb;
+  border-radius: 18px;
   background: white;
-  color: #222;
   text-align: left;
-  cursor: pointer;
+  margin-bottom: 16px;
+  color: #1f2937;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.035);
 }
 
-.chatroomCard h3 {
-  margin: 0 0 4px;
-  color: #222;
-  font-size: 16px;
-}
-
-.chatroomCard p {
-  margin: 0;
-  color: #777;
-  font-size: 12px;
+.chatroomCard:hover {
+  border-color: #bfdbfe;
+  background: #f9fbff;
 }
 
 .activeRoom {
-  border: 2px solid #333;
+  border-color: #93c5fd;
+  background: #eff6ff;
+}
+
+.roomCardTop {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 12px;
+}
+
+.roomCardTop h3 {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 800;
+  color: #111827;
+}
+
+.roomCreator {
+  margin: 6px 0 0;
+  font-size: 13px;
+  color: #6b7280;
+}
+
+.roomDescription {
+  margin: 12px 0 16px;
+  font-size: 14px;
+  color: #4b5563;
+  line-height: 1.55;
+}
+
+.roomBadge {
+  padding: 5px 10px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.privateBadge {
+  color: #991b1b;
+  background: #fee2e2;
+}
+
+.publicBadge {
+  color: #166534;
+  background: #dcfce7;
+}
+
+.roomActions {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.joinedRoomButton {
+  background: #60a5fa;
+  border-color: #60a5fa;
+  color: white;
+}
+
+.deleteRoomButton {
+  background: #ef4444;
+  border-color: #ef4444;
+  color: white;
+}
+
+.leaveRoomButton {
+  background: #6b7280;
+  border-color: #6b7280;
+  color: white;
 }
 
 /* Chat Panel */
@@ -136,19 +230,31 @@ input {
 .chatPanel {
   display: flex;
   flex-direction: column;
+  min-width: 0;
+  height: calc(100vh - 64px);
+  overflow: hidden;
+  background: #f7f8fa;
 }
 
 .emptyChatPanel {
   display: flex;
   align-items: center;
   justify-content: center;
-  color: #777;
+  color: #6b7280;
 }
 
 .chatHeader {
   background: white;
   padding: 18px 24px;
-  border-bottom: 1px solid #ddd;
+  border-bottom: 1px solid #e5e7eb;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.chatHeaderInfo {
+  flex: 1;
+  min-width: 0;
 }
 
 .chatHeader h2,
@@ -156,22 +262,57 @@ input {
   margin: 0;
 }
 
-.chatHeader p {
-  margin-top: 4px;
-  color: #64748b;
+.chatHeader h2 {
+  color: #111827;
+  font-weight: 800;
 }
+
+.chatHeader p,
+.chatHeaderInfo small {
+  margin-top: 4px;
+  color: #6b7280;
+}
+
+.inviteButton,
+.notifyButton {
+  white-space: nowrap;
+  font-size: 14px;
+  padding: 8px 13px;
+}
+
+.notifyButtonOn {
+  font-weight: 800;
+  background: #eff6ff;
+  color: #2563eb;
+  border-color: #bfdbfe;
+}
+
+/* Messages */
 
 .messageArea {
   flex: 1;
+  min-height: 0;
   padding: 24px;
   overflow-y: auto;
+  background: #f7f8fa;
 }
 
 .messageBubble {
   background: white;
-  padding: 10px 12px;
-  border-radius: 12px;
-  margin-bottom: 10px;
+  padding: 12px 14px;
+  border-radius: 18px;
+  margin-bottom: 12px;
+  max-width: 72%;
+  border: 1px solid #e5e7eb;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.035);
+  animation: messageFadeIn 0.25s ease-out;
+}
+
+.myMessage {
+  margin-left: auto;
+  background: #eef6ff;
+  color: #1f2937;
+  border-color: #dbeafe;
 }
 
 .messageBubble p {
@@ -179,22 +320,124 @@ input {
 }
 
 .messageBubble small {
-  color: #777;
+  color: #6b7280;
 }
+
+.messageText {
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.messageActions,
+.editMessageBox {
+  display: flex;
+  gap: 8px;
+  margin-top: 8px;
+  flex-wrap: wrap;
+}
+
+.messageActions button,
+.editMessageBox button {
+  padding: 6px 11px;
+  font-size: 13px;
+}
+
+.messageImage {
+  max-width: 220px;
+  max-height: 220px;
+  border-radius: 14px;
+  margin-top: 8px;
+  object-fit: cover;
+}
+
+.hiddenFileInput {
+  display: none;
+}
+
+/* Reactions */
+
+.reactionBar {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  gap: 10px;
+  margin-top: 8px;
+  flex-wrap: wrap;
+}
+
+.reactionBar button {
+  pointer-events: auto;
+  cursor: pointer;
+  background: white;
+  border: 1px solid #d1d5db;
+  border-radius: 999px;
+  padding: 6px 11px;
+  color: #374151;
+  box-shadow: none;
+}
+
+.reactionBar button:hover {
+  background: #f3f4f6;
+  border-color: #bfdbfe;
+}
+
+.replyPreview {
+  display: block;
+  width: 100%;
+  text-align: left;
+  border: none;
+  border-left: 4px solid #93c5fd;
+  background: #f0f7ff;
+  padding: 9px;
+  margin: 7px 0;
+  border-radius: 12px;
+  cursor: pointer;
+  color: inherit;
+}
+
+.replyPreviewLabel {
+  font-weight: 800;
+  margin-right: 4px;
+}
+
+.highlightMessage {
+  animation: replyFocusFlash 1.5s ease;
+}
+
+/* Input Bar */
 
 .messageInputBar {
   display: flex;
   gap: 12px;
   padding: 16px 24px;
   background: white;
-  border-top: 1px solid #ddd;
+  border-top: 1px solid #e5e7eb;
 }
 
 .messageInputBar input {
   flex: 1;
 }
 
-/* Floating Button */
+.messageInputBar button,
+.floatingAddButton {
+  background: #60a5fa;
+  border-color: #60a5fa;
+  color: white;
+}
+
+/* Search */
+
+.searchBar {
+  display: flex;
+  gap: 8px;
+  padding: 10px 0;
+}
+
+.searchBar input {
+  flex: 1;
+}
+
+/* Floating Add Button */
 
 .floatingAddButton {
   position: fixed;
@@ -206,6 +449,8 @@ input {
   border-radius: 50%;
   font-size: 32px;
   line-height: 1;
+  z-index: 50;
+  box-shadow: 0 10px 22px rgba(96, 165, 250, 0.28);
 }
 
 /* Profile */
@@ -224,19 +469,17 @@ input {
   margin-bottom: 8px;
 }
 
-.profilePage input {
-  width: 100%;
-}
-
 /* Modal */
 
 .modalOverlay {
   position: fixed;
   inset: 0;
-  background: rgba(15, 23, 42, 0.45);
+  background: rgba(17, 24, 39, 0.38);
   display: flex;
   align-items: center;
   justify-content: center;
+  z-index: 9999;
+  padding: 20px;
 }
 
 .authModal,
@@ -244,10 +487,13 @@ input {
   position: relative;
   background: white;
   padding: 28px;
-  border-radius: 18px;
+  border-radius: 22px;
   display: flex;
   flex-direction: column;
   gap: 12px;
+  border: 1px solid #e5e7eb;
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.16);
+  animation: modalPop 0.25s ease-out;
 }
 
 .authModal {
@@ -255,11 +501,12 @@ input {
 }
 
 .createRoomModal {
-  min-width: 300px;
+  width: min(430px, 100%);
 }
 
-.createRoomModal input {
-  width: 100%;
+.createRoomModal textarea {
+  min-height: 88px;
+  resize: vertical;
 }
 
 .authModal h2 {
@@ -275,11 +522,12 @@ input {
   position: absolute;
   top: 14px;
   right: 16px;
-  width: 32px;
-  height: 32px;
+  width: 34px;
+  height: 34px;
   padding: 0;
   border-radius: 50%;
-  background: #e5e7eb;
+  background: #f3f4f6;
+  border-color: #e5e7eb;
   color: #111827;
   font-size: 22px;
   line-height: 1;
@@ -288,23 +536,61 @@ input {
 /* Text */
 
 .emptyText {
-  color: #777;
+  color: #6b7280;
   font-size: 14px;
+}
+
+.backToRoomsButton {
+  display: none;
+  background: transparent;
+  border-color: transparent;
+  color: #111827;
+  font-size: 24px;
+  padding: 0;
+  margin-right: 12px;
+}
+
+/* Animations */
+
+@keyframes messageFadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(8px) scale(0.98);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes modalPop {
+  from {
+    opacity: 0;
+    transform: scale(0.94);
+  }
+
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes replyFocusFlash {
+  0% {
+    outline: 3px solid #93c5fd;
+    transform: scale(1.02);
+  }
+
+  100% {
+    outline: 0 solid transparent;
+    transform: scale(1);
+  }
 }
 
 /* RWD */
 
 @media (max-width: 768px) {
-  .mainLayout {
-    grid-template-columns: 1fr;
-  }
-
-  .sidebar {
-    height: 180px;
-    border-right: none;
-    border-bottom: 1px solid #ddd;
-  }
-
   .navbar {
     padding: 0 14px;
   }
@@ -313,37 +599,13 @@ input {
     font-size: 18px;
   }
 
-  .profilePage {
-    padding: 20px;
-  }
-}
-
-.deleteRoomButton {
-  display: inline-block;
-  margin-top: 8px;
-  padding: 4px 8px;
-  border-radius: 6px;
-  background: #ef4444;
-  color: white;
-  font-size: 12px;
-}
-
-.backToRoomsButton {
-  display: none;
-  background: transparent;
-  color: #111827;
-  font-size: 24px;
-  padding: 0;
-  margin-right: 12px;
-}
-
-@media (max-width: 768px) {
   .mainLayout {
     display: block;
   }
 
   .sidebar {
     height: calc(100vh - 64px);
+    border-right: none;
   }
 
   .hideOnMobile {
@@ -358,268 +620,99 @@ input {
     display: inline-block;
   }
 
-  .chatHeader {
-    display: flex;
-    align-items: center;
-  }
-
-  .floatingAddButton {
-    left: 24px;
-    bottom: 24px;
-  }
-}
-
-.createRoomModal textarea,
-.createRoomModal select {
-  width: 100%;
-  padding: 12px;
-  border: 1px solid #cbd5e1;
-  border-radius: 8px;
-  font-family: Arial, sans-serif;
-}
-
-.createRoomModal textarea {
-  min-height: 80px;
-  resize: vertical;
-}
-
-.chatHeader {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-}
-
-.chatHeaderInfo {
-  flex: 1;
-}
-
-.chatHeaderInfo small {
-  color: #64748b;
-}
-
-.inviteButton {
-  white-space: nowrap;
-  font-size: 14px;
-}
-
-@media (max-width: 768px) {
   .hideAddOnMobile {
     display: none;
   }
-}
-.joinRoomButton {
-  margin-top: 10px;
-  padding: 8px 12px;
-  border: none;
-  border-radius: 8px;
-  cursor: pointer;
+
+  .chatHeader {
+    padding: 14px 16px;
+  }
+
+  .messageArea {
+    padding: 16px;
+  }
+
+  .messageBubble {
+    max-width: 88%;
+  }
+
+  .messageInputBar {
+    padding: 12px;
+  }
+
+  .profilePage {
+    padding: 20px;
+  }
 }
 
-.deleteRoomButton {
-  margin-top: 8px;
-  padding: 8px 12px;
-  border: none;
-  border-radius: 8px;
-  cursor: pointer;
-}
+  /* Blocked Users */
 
-.chatroomCard {
-  width: 100%;
-  padding: 18px;
-  border: 1px solid #e5e7eb;
-  border-radius: 18px;
+.blockedUsersBox {
+  padding: 10px 24px;
   background: white;
-  text-align: left;
-  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.04);
-  margin-bottom: 16px;
-}
-
-.chatroomCard:hover {
-  border-color: #3b82f6;
-  box-shadow: 0 8px 22px rgba(59, 130, 246, 0.12);
-}
-
-.activeRoom {
-  border-color: #3b82f6;
-}
-
-.roomCardTop {
+  border-top: 1px solid #e5e7eb;
   display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
-  gap: 12px;
+  justify-content: flex-end;
 }
 
-.roomCardTop h3 {
-  margin: 0;
-  font-size: 20px;
-  font-weight: 700;
-  color: #111827;
+.blockedListButton {
+  width: auto;
+  background: #f9fafb;
+  border-color: #d1d5db;
+  color: #374151;
 }
 
-.roomCreator {
-  margin: 6px 0 0;
-  font-size: 14px;
-  color: #6b7280;
-}
-
-.roomDescription {
-  margin: 12px 0 16px;
-  font-size: 14px;
-  color: #4b5563;
-  line-height: 1.5;
-}
-
-.roomBadge {
-  padding: 5px 10px;
-  border-radius: 999px;
-  font-size: 12px;
-  font-weight: 600;
-  white-space: nowrap;
-}
-
-.privateBadge {
-  color: #7f1d1d;
-  background: #fee2e2;
-}
-
-.publicBadge {
-  color: #065f46;
-  background: #d1fae5;
-}
-
-.roomActions {
+.blockedListModal {
+  position: relative;
+  width: min(420px, calc(100vw - 40px));
+  max-height: 70vh;
+  overflow-y: auto;
+  background: white;
+  padding: 28px;
+  border-radius: 22px;
   display: flex;
+  flex-direction: column;
+  gap: 14px;
+  border: 1px solid #e5e7eb;
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.16);
+}
+
+.blockedListModal h2 {
+  margin: 0 0 8px;
+}
+
+.blockedUserList {
+  display: flex;
+  flex-direction: column;
   gap: 10px;
 }
 
-.joinRoomButton,
-.deleteRoomButton {
-  border: none;
-  border-radius: 999px;
-  padding: 8px 16px;
-  color: white;
-  font-weight: 600;
-  cursor: pointer;
+.blockedUserItem {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 12px;
+  border-radius: 14px;
+  background: #f9fafb;
+  border: 1px solid #e5e7eb;
 }
 
-.deleteRoomButton {
+.blockedUserItem div {
+  min-width: 0;
+}
+
+.blockedUserItem strong {
+  color: #111827;
+  word-break: break-word;
+}
+
+.blockedUserItem button {
+  flex-shrink: 0;
+}
+
+.unblockAllButton {
   background: #ef4444;
-}
-
-.deleteRoomButton:hover {
-  background: #dc2626;
-}
-
-.joinedRoomButton {
-  background: #10b981;
-}
-
-.joinedRoomButton:hover {
-  background: #059669;
-}
-
-.leaveRoomButton {
-  border: none;
-  border-radius: 999px;
-  padding: 8px 16px;
+  border-color: #ef4444;
   color: white;
-  font-weight: 700;
-  cursor: pointer;
-  background: #6b7280;
-}
-
-.leaveRoomButton:hover {
-  background: #4b5563;
-}
-
-.notifyButton {
-  border: none;
-  border-radius: 10px;
-  padding: 8px 12px;
-  cursor: pointer;
-}
-
-.notifyButtonOn {
-  font-weight: 700;
-}
-
-.messageText {
-  white-space: pre-wrap;
-  word-break: break-word;
-}
-
-.messageBubble {
-  animation: messageFadeIn 0.25s ease-out;
-}
-
-@keyframes messageFadeIn {
-  from {
-    opacity: 0;
-    transform: translateY(8px) scale(0.98);
-  }
-
-  to {
-    opacity: 1;
-    transform: translateY(0) scale(1);
-  }
-}
-
-.createRoomModal {
-  animation: modalPop 0.25s ease-out;
-}
-
-@keyframes modalPop {
-  from {
-    opacity: 0;
-    transform: scale(0.92);
-  }
-
-  to {
-    opacity: 1;
-    transform: scale(1);
-  }
-}
-
-.searchBar {
-  display: flex;
-  gap: 8px;
-  padding: 10px;
-}
-
-.searchBar input {
-  flex: 1;
-}
-
-.messageActions {
-  display: flex;
-  gap: 6px;
-  margin-top: 6px;
-}
-
-.editMessageBox {
-  display: flex;
-  gap: 6px;
-  margin-top: 6px;
-}
-
-.messageImage {
-  max-width: 220px;
-  max-height: 220px;
-  border-radius: 12px;
-  margin-top: 8px;
-  object-fit: cover;
-}
-
-.hiddenFileInput {
-  display: none;
-}
-
-.myMessage {
-  margin-left: auto;
-}
-
-.messageText {
-  white-space: pre-wrap;
-  word-break: break-word;
 }

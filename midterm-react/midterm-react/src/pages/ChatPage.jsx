@@ -21,6 +21,28 @@ import {
 } from "firebase/storage";
 import { db, storage } from "../firebase";
 
+// ── constants ────────────────────────────────────────────────────────────────
+
+const REACTION_EMOJIS = ["👍", "❤️", "😂", "😢"];
+
+// ── helpers ──────────────────────────────────────────────────────────────────
+
+const roomInviteUrl = (roomId) =>
+  `${window.location.origin}${window.location.pathname}?room=${roomId}`;
+
+const pushRoomToUrl = (roomId) =>
+  window.history.pushState({}, "", `?room=${roomId}`);
+
+const clearRoomFromUrl = () =>
+  window.history.pushState({}, "", window.location.pathname);
+
+const replaceRoomInUrl = (roomId) =>
+  roomId
+    ? window.history.replaceState({}, "", `?room=${roomId}`)
+    : window.history.replaceState({}, "", window.location.pathname);
+
+// ── component ────────────────────────────────────────────────────────────────
+
 function ChatPage({ profile, user, onLoginRequired }) {
   const displayName =
     profile.username ||
@@ -28,145 +50,144 @@ function ChatPage({ profile, user, onLoginRequired }) {
     user?.email?.split("@")[0] ||
     "Guest";
 
+  // rooms & messages
   const [chatrooms, setChatrooms] = useState([]);
   const [selectedRoomId, setSelectedRoomId] = useState(null);
-  const [selectedRoomFromInvite, setSelectedRoomFromInvite] = useState(null);
+  const [inviteRoom, setInviteRoom] = useState(null); // room loaded from ?room= URL
   const [messages, setMessages] = useState([]);
 
+  // room creation
   const [showCreateBox, setShowCreateBox] = useState(false);
   const [roomName, setRoomName] = useState("");
-  const [messageText, setMessageText] = useState("");
-
   const [roomDescription, setRoomDescription] = useState("");
   const [roomVisibility, setRoomVisibility] = useState("public");
   const [roomPassword, setRoomPassword] = useState("");
-  const [copied, setCopied] = useState(false);
 
+  // messaging
+  const [messageText, setMessageText] = useState("");
+  const [replyTo, setReplyTo] = useState(null);
+  const [editingMessageId, setEditingMessageId] = useState(null);
+  const [editingText, setEditingText] = useState("");
+  const [uploadingImage, setUploadingImage] = useState(false);
+  const [searchText, setSearchText] = useState("");
+
+  // private room join
   const [showPasswordBox, setShowPasswordBox] = useState(false);
   const [joiningRoom, setJoiningRoom] = useState(null);
   const [joinPassword, setJoinPassword] = useState("");
 
+  // UI state
+  const [copied, setCopied] = useState(false);
   const [notificationEnabled, setNotificationEnabled] = useState(false);
+  const [highlightedMessageId, setHighlightedMessageId] = useState(null);
+  const [showBlockedList, setShowBlockedList] = useState(false);
 
-  const [editingMessageId, setEditingMessageId] = useState(null);
-  const [editingText, setEditingText] = useState("");
-  const [searchText, setSearchText] = useState("");
-  const [uploadingImage, setUploadingImage] = useState(false);
-
+  // refs
   const lastMessageCountRef = useRef(0);
   const isInitialLoadRef = useRef(true);
   const imageInputRef = useRef(null);
+  const messageRefs = useRef({});
+
+  // ── derived state ───────────────────────────────────────────────────────────
 
   const selectedRoom =
-    chatrooms.find((room) => room.id === selectedRoomId) ||
-    selectedRoomFromInvite;
+    chatrooms.find((r) => r.id === selectedRoomId) ?? inviteRoom;
 
-  const filteredMessages = messages.filter((message) => {
-    const keyword = searchText.trim().toLowerCase();
+  // block maps for the current room
+  const roomBlocks = selectedRoom?.blocks ?? {};
+  const myBlockedUids = user ? (roomBlocks[user.uid] ?? []) : [];
 
-    if (!keyword) return true;
+  // build a display-friendly blocked list by peeking at cached messages
+  const blockedUserList = myBlockedUids.map((uid) => ({
+    uid,
+    name: messages.find((m) => m.senderUid === uid)?.sender ?? uid,
+  }));
 
-    return (
-      message.text?.toLowerCase().includes(keyword) ||
-      message.sender?.toLowerCase().includes(keyword)
-    );
-  });
+  // ── role helpers ────────────────────────────────────────────────────────────
 
   const isRoomOwner = (room) => room.createdByUid === user?.uid;
   const isJoinedRoom = (room) => room.members?.includes(user?.uid);
   const canEnterRoom = (room) => isRoomOwner(room) || isJoinedRoom(room);
-  const isMyMessage = (message) => message.senderUid === user?.uid;
+  const isMyMessage = (msg) => msg.senderUid === user?.uid;
 
-  const toggleNotification = async () => {
-    if (notificationEnabled) {
-      setNotificationEnabled(false);
-      alert("已關閉聊天室通知");
-      return;
-    }
+  // ── visibility helpers ──────────────────────────────────────────────────────
 
-    if (!("Notification" in window)) {
-      alert("這個瀏覽器不支援 Chrome 通知");
-      return;
-    }
+  const isPublicRoom = (room) => room.visibility !== "private";
+  const visibilityLabel = (room) => (isPublicRoom(room) ? "Public" : "Private");
+  const visibilityBadgeClass = (room) =>
+    isPublicRoom(room) ? "roomBadge publicBadge" : "roomBadge privateBadge";
 
-    if (Notification.permission === "denied") {
-      alert("通知被瀏覽器封鎖，請到 Chrome 網站設定裡重新允許通知");
-      return;
-    }
+  // ── message filtering ───────────────────────────────────────────────────────
 
-    if (Notification.permission === "default") {
-      const permission = await Notification.requestPermission();
+  const filteredMessages = messages
+    .filter((msg) => {
+      if (!user) return true;
+      const iBlocked = myBlockedUids.includes(msg.senderUid);
+      const theyBlockedMe = roomBlocks[msg.senderUid]?.includes(user.uid);
+      return !iBlocked && !theyBlockedMe;
+    })
+    .filter((msg) => {
+      const kw = searchText.trim().toLowerCase();
+      if (!kw) return true;
+      return (
+        msg.text?.toLowerCase().includes(kw) ||
+        msg.sender?.toLowerCase().includes(kw) ||
+        msg.replyTo?.text?.toLowerCase().includes(kw) ||
+        msg.replyTo?.sender?.toLowerCase().includes(kw)
+      );
+    });
 
-      if (permission !== "granted") {
-        alert("你沒有允許通知");
-        return;
-      }
-    }
-
-    setNotificationEnabled(true);
-    alert("已開啟聊天室通知");
-  };
+  // ── effects: chatroom list ──────────────────────────────────────────────────
 
   useEffect(() => {
     const q = query(collection(db, "chatrooms"), orderBy("createdAt", "desc"));
-
-    const unsubscribe = onSnapshot(q, (snapshot) => {
-      const rooms = snapshot.docs.map((doc) => ({
-        id: doc.id,
-        ...doc.data(),
-      }));
-
-      setChatrooms(rooms);
-    });
-
-    return () => unsubscribe();
+    return onSnapshot(q, (snap) =>
+      setChatrooms(snap.docs.map((d) => ({ id: d.id, ...d.data() })))
+    );
   }, []);
 
-  useEffect(() => {
-    const openRoomFromInvite = async () => {
-      const params = new URLSearchParams(window.location.search);
-      const roomIdFromUrl = params.get("room");
+  // ── effects: deep-link / invite URL ────────────────────────────────────────
 
+  useEffect(() => {
+    const handleInviteLink = async () => {
+      const roomIdFromUrl = new URLSearchParams(window.location.search).get("room");
       if (!roomIdFromUrl) return;
 
-      const roomRef = doc(db, "chatrooms", roomIdFromUrl);
-      const roomSnap = await getDoc(roomRef);
-
+      const roomSnap = await getDoc(doc(db, "chatrooms", roomIdFromUrl));
       if (!roomSnap.exists()) {
-        window.history.replaceState({}, "", window.location.pathname);
+        replaceRoomInUrl(null);
         return;
       }
 
-      const targetRoom = {
-        id: roomSnap.id,
-        ...roomSnap.data(),
-      };
-
+      const targetRoom = { id: roomSnap.id, ...roomSnap.data() };
       setSelectedRoomId(targetRoom.id);
-      setSelectedRoomFromInvite(targetRoom);
+      setInviteRoom(targetRoom);
 
       if (!user) {
         onLoginRequired?.();
         return;
       }
 
-      if (
-        targetRoom.createdByUid !== user.uid &&
-        !targetRoom.members?.includes(user.uid)
-      ) {
-        await updateDoc(roomRef, {
+      // auto-join if not already a member
+      const isAlreadyMember =
+        targetRoom.createdByUid === user.uid ||
+        targetRoom.members?.includes(user.uid);
+
+      if (!isAlreadyMember) {
+        await updateDoc(doc(db, "chatrooms", targetRoom.id), {
           members: arrayUnion(user.uid),
         });
-
-        setSelectedRoomFromInvite({
+        setInviteRoom({
           ...targetRoom,
-          members: [...(targetRoom.members || []), user.uid],
+          members: [...(targetRoom.members ?? []), user.uid],
         });
       }
     };
 
-    openRoomFromInvite();
+    handleInviteLink();
   }, [user, onLoginRequired]);
+
+  // ── effects: message stream ─────────────────────────────────────────────────
 
   useEffect(() => {
     if (!selectedRoomId) {
@@ -181,76 +202,68 @@ function ChatPage({ profile, user, onLoginRequired }) {
       orderBy("createdAt", "asc")
     );
 
-    const unsubscribe = onSnapshot(q, (snapshot) => {
-      const roomMessages = snapshot.docs.map((doc) => ({
-        id: doc.id,
-        ...doc.data(),
-      }));
-
+    return onSnapshot(q, (snap) => {
+      const roomMessages = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
       setMessages(roomMessages);
 
-      const previousCount = lastMessageCountRef.current;
-      const currentCount = roomMessages.length;
+      const prev = lastMessageCountRef.current;
+      const curr = roomMessages.length;
 
       if (isInitialLoadRef.current) {
-        lastMessageCountRef.current = currentCount;
+        lastMessageCountRef.current = curr;
         isInitialLoadRef.current = false;
         return;
       }
 
-      if (currentCount > previousCount) {
-        const newestMessage = roomMessages[currentCount - 1];
-
-        const isFromOtherUser = newestMessage.senderUid !== user?.uid;
-        const pageIsHidden = document.hidden;
-
-        if (
+      // push notification for new messages from others while page is hidden
+      if (curr > prev) {
+        const newest = roomMessages[curr - 1];
+        const fromOther = newest.senderUid !== user?.uid;
+        const canNotify =
           notificationEnabled &&
-          isFromOtherUser &&
-          pageIsHidden &&
+          fromOther &&
+          document.hidden &&
           "Notification" in window &&
-          Notification.permission === "granted"
-        ) {
+          Notification.permission === "granted";
+
+        if (canNotify) {
           new Notification("你有新的未讀訊息", {
-            body: `${newestMessage.sender}: ${
-              newestMessage.type === "image" ? "傳送了一張圖片" : newestMessage.text
+            body: `${newest.sender}: ${
+              newest.type === "image" ? "傳送了一張圖片" : newest.text
             }`,
           });
         }
       }
 
-      lastMessageCountRef.current = currentCount;
+      lastMessageCountRef.current = curr;
     });
-
-    return () => unsubscribe();
   }, [selectedRoomId, user, notificationEnabled]);
 
+  // ── navigation helpers ──────────────────────────────────────────────────────
+
   const selectRoom = (roomId) => {
-    setSelectedRoomFromInvite(null);
+    setInviteRoom(null);
     setSelectedRoomId(roomId);
     setSearchText("");
-    window.history.pushState({}, "", `?room=${roomId}`);
+    setReplyTo(null);
+    pushRoomToUrl(roomId);
   };
 
   const backToRoomList = () => {
     setSelectedRoomId(null);
-    setSelectedRoomFromInvite(null);
+    setInviteRoom(null);
     setSearchText("");
-    window.history.pushState({}, "", window.location.pathname);
+    setReplyTo(null);
+    clearRoomFromUrl();
   };
 
+  // ── room actions ────────────────────────────────────────────────────────────
+
   const joinRoom = async (room) => {
-    if (!user) {
-      onLoginRequired?.();
-      return;
-    }
+    if (!user) { onLoginRequired?.(); return; }
+    if (canEnterRoom(room)) { selectRoom(room.id); return; }
 
-    if (canEnterRoom(room)) {
-      selectRoom(room.id);
-      return;
-    }
-
-    if (room.visibility === "private") {
+    if (!isPublicRoom(room)) {
       setJoiningRoom(room);
       setJoinPassword("");
       setShowPasswordBox(true);
@@ -260,14 +273,12 @@ function ChatPage({ profile, user, onLoginRequired }) {
     await updateDoc(doc(db, "chatrooms", room.id), {
       members: arrayUnion(user.uid),
     });
-
     selectRoom(room.id);
   };
 
   const leaveChatroom = async (roomId) => {
     if (!user) return;
-
-    const room = chatrooms.find((room) => room.id === roomId);
+    const room = chatrooms.find((r) => r.id === roomId);
     if (!room) return;
 
     if (isRoomOwner(room)) {
@@ -279,18 +290,11 @@ function ChatPage({ profile, user, onLoginRequired }) {
       members: arrayRemove(user.uid),
     });
 
-    if (selectedRoomId === roomId) {
-      backToRoomList();
-    }
+    if (selectedRoomId === roomId) backToRoomList();
   };
 
   const confirmJoinPrivateRoom = async () => {
-    if (!joiningRoom) return;
-
-    if (!user) {
-      onLoginRequired?.();
-      return;
-    }
+    if (!joiningRoom || !user) { onLoginRequired?.(); return; }
 
     if (joinPassword !== joiningRoom.password) {
       alert("密碼錯誤");
@@ -308,14 +312,11 @@ function ChatPage({ profile, user, onLoginRequired }) {
   };
 
   const createChatroom = async () => {
-    if (!user) {
-      onLoginRequired?.();
-      return;
-    }
-
+    if (!user) { onLoginRequired?.(); return; }
     if (!roomName.trim()) return;
 
-    if (roomVisibility === "private" && !roomPassword.trim()) {
+    const isPrivate = roomVisibility === "private";
+    if (isPrivate && !roomPassword.trim()) {
       alert("Private chatroom 需要設定密碼");
       return;
     }
@@ -324,7 +325,7 @@ function ChatPage({ profile, user, onLoginRequired }) {
       name: roomName.trim(),
       description: roomDescription.trim(),
       visibility: roomVisibility,
-      password: roomVisibility === "private" ? roomPassword.trim() : "",
+      password: isPrivate ? roomPassword.trim() : "",
       createdBy: displayName,
       createdByUid: user.uid,
       members: [user.uid],
@@ -335,15 +336,10 @@ function ChatPage({ profile, user, onLoginRequired }) {
       createdAt: serverTimestamp(),
     });
 
-    const newRoom = {
-      id: docRef.id,
-      ...newRoomData,
-      createdAt: new Date(),
-    };
-
-    setSelectedRoomFromInvite(newRoom);
+    // optimistically set invite room so UI shows it immediately
+    setInviteRoom({ id: docRef.id, ...newRoomData, createdAt: new Date() });
     setSelectedRoomId(docRef.id);
-    window.history.pushState({}, "", `?room=${docRef.id}`);
+    pushRoomToUrl(docRef.id);
 
     setRoomName("");
     setRoomDescription("");
@@ -352,97 +348,207 @@ function ChatPage({ profile, user, onLoginRequired }) {
     setShowCreateBox(false);
   };
 
-  const sendMessage = async () => {
-    if (!user) {
-      onLoginRequired?.();
+  const deleteChatroom = async (roomId) => {
+    if (!window.confirm("確定要刪除這個聊天室嗎？")) return;
+
+    await deleteDoc(doc(db, "chatrooms", roomId));
+
+    if (selectedRoomId === roomId) backToRoomList();
+
+    if (new URLSearchParams(window.location.search).get("room") === roomId) {
+      replaceRoomInUrl(null);
+    }
+  };
+
+  // ── invite link ─────────────────────────────────────────────────────────────
+
+  const copyInviteLink = async () => {
+    if (!selectedRoomId) return;
+    await navigator.clipboard.writeText(roomInviteUrl(selectedRoomId));
+    setCopied(true);
+    setTimeout(() => setCopied(false), 1500);
+  };
+
+  // ── notifications ───────────────────────────────────────────────────────────
+
+  const toggleNotification = async () => {
+    if (notificationEnabled) {
+      setNotificationEnabled(false);
+      alert("已關閉聊天室通知");
       return;
     }
 
+    if (!("Notification" in window)) {
+      alert("這個瀏覽器不支援 Chrome 通知");
+      return;
+    }
+    if (Notification.permission === "denied") {
+      alert("通知被瀏覽器封鎖，請到 Chrome 網站設定裡重新允許通知");
+      return;
+    }
+    if (Notification.permission === "default") {
+      const perm = await Notification.requestPermission();
+      if (perm !== "granted") { alert("你沒有允許通知"); return; }
+    }
+
+    setNotificationEnabled(true);
+    alert("已開啟聊天室通知");
+  };
+
+  // ── block / unblock ─────────────────────────────────────────────────────────
+
+  const toggleBlockUser = async (uid) => {
+    if (!user || !selectedRoomId || !uid) return;
+
+    const isBlocked = myBlockedUids.includes(uid);
+    await updateDoc(doc(db, "chatrooms", selectedRoomId), {
+      [`blocks.${user.uid}`]: isBlocked
+        ? myBlockedUids.filter((id) => id !== uid)
+        : [...myBlockedUids, uid],
+    });
+  };
+
+  const unblockAll = async () => {
+    if (!user || !selectedRoomId) return;
+    await updateDoc(doc(db, "chatrooms", selectedRoomId), {
+      [`blocks.${user.uid}`]: [],
+    });
+    setShowBlockedList(false);
+  };
+
+  // ── reactions ───────────────────────────────────────────────────────────────
+
+  const toggleReaction = async (message, emoji) => {
+    if (!user || !selectedRoomId) { onLoginRequired?.(); return; }
+
+    const reactedUids = message.reactions?.[emoji] ?? [];
+    const hasReacted = reactedUids.includes(user.uid);
+
+    try {
+      await updateDoc(
+        doc(db, "chatrooms", selectedRoomId, "messages", message.id),
+        {
+          [`reactions.${emoji}`]: hasReacted
+            ? arrayRemove(user.uid)
+            : arrayUnion(user.uid),
+        }
+      );
+    } catch (err) {
+      console.error("Reaction update failed:", err);
+    }
+  };
+
+  // ── reply helpers ───────────────────────────────────────────────────────────
+
+  const buildReplyData = () => {
+    if (!replyTo) return null;
+    return {
+      id: replyTo.id,
+      sender: replyTo.sender,
+      senderUid: replyTo.senderUid,
+      type: replyTo.type ?? "text",
+      text: replyTo.type === "image" ? "" : replyTo.text ?? "",
+      imageUrl: replyTo.type === "image" ? replyTo.imageUrl ?? "" : "",
+    };
+  };
+
+  const focusOriginalMessage = (messageId) => {
+    if (!messageId) return;
+    const el = messageRefs.current[messageId];
+    if (!el) { alert("原訊息已被收回或目前不可見"); return; }
+
+    el.scrollIntoView({ behavior: "smooth", block: "center" });
+    setHighlightedMessageId(messageId);
+    setTimeout(() => setHighlightedMessageId(null), 1500);
+  };
+
+  const replyPreviewText = (msg) =>
+    msg.type === "image" ? "圖片" : msg.text;
+
+  // ── messaging ───────────────────────────────────────────────────────────────
+
+  const sendMessage = async () => {
+    if (!user) { onLoginRequired?.(); return; }
     if (!messageText.trim() || !selectedRoomId) return;
-
-    const room = selectedRoom;
-
-    if (room && !canEnterRoom(room)) {
+    if (selectedRoom && !canEnterRoom(selectedRoom)) {
       alert("請先加入聊天室");
       return;
     }
 
-    await addDoc(collection(db, "chatrooms", selectedRoomId, "messages"), {
-      type: "text",
-      text: messageText.trim(),
-      sender: displayName,
-      senderUid: user.uid,
-      createdAt: serverTimestamp(),
-      edited: false,
-    });
+    await addDoc(
+      collection(db, "chatrooms", selectedRoomId, "messages"),
+      {
+        type: "text",
+        text: messageText.trim(),
+        sender: displayName,
+        senderUid: user.uid,
+        createdAt: serverTimestamp(),
+        edited: false,
+        replyTo: buildReplyData(),
+        reactions: {},
+      }
+    );
 
     setMessageText("");
+    setReplyTo(null);
   };
 
   const sendImage = async (e) => {
     const file = e.target.files?.[0];
-
     if (!file) return;
-
-    if (!user) {
-      onLoginRequired?.();
-      return;
-    }
-
+    if (!user) { onLoginRequired?.(); return; }
     if (!selectedRoomId) return;
 
     if (!file.type.startsWith("image/")) {
       alert("只能上傳圖片");
       return;
     }
-
-    const room = selectedRoom;
-
-    if (room && !canEnterRoom(room)) {
+    if (selectedRoom && !canEnterRoom(selectedRoom)) {
       alert("請先加入聊天室");
       return;
     }
 
     try {
       setUploadingImage(true);
-
-      const filePath = `chatrooms/${selectedRoomId}/images/${Date.now()}_${file.name}`;
+      const safeName = file.name.replace(/[^\w.-]/g, "_");
+      const filePath = `chatrooms/${selectedRoomId}/images/${Date.now()}_${safeName}`;
       const imageRef = ref(storage, filePath);
 
       await uploadBytes(imageRef, file);
       const imageUrl = await getDownloadURL(imageRef);
 
-      await addDoc(collection(db, "chatrooms", selectedRoomId, "messages"), {
-        type: "image",
-        text: "",
-        imageUrl,
-        imagePath: filePath,
-        sender: displayName,
-        senderUid: user.uid,
-        createdAt: serverTimestamp(),
-        edited: false,
-      });
-    } catch (error) {
-      alert(error.message);
+      await addDoc(
+        collection(db, "chatrooms", selectedRoomId, "messages"),
+        {
+          type: "image",
+          text: "",
+          imageUrl,
+          imagePath: filePath,
+          sender: displayName,
+          senderUid: user.uid,
+          createdAt: serverTimestamp(),
+          edited: false,
+          replyTo: buildReplyData(),
+          reactions: {},
+        }
+      );
+
+      setReplyTo(null);
+    } catch (err) {
+      alert(err.message);
     } finally {
       setUploadingImage(false);
-
-      if (imageInputRef.current) {
-        imageInputRef.current.value = "";
-      }
+      if (imageInputRef.current) imageInputRef.current.value = "";
     }
   };
 
-  const startEditMessage = (message) => {
-    if (!isMyMessage(message)) return;
+  // ── edit message ────────────────────────────────────────────────────────────
 
-    if (message.type === "image") {
-      alert("圖片不能編輯，只能收回");
-      return;
-    }
-
-    setEditingMessageId(message.id);
-    setEditingText(message.text || "");
+  const startEditMessage = (msg) => {
+    if (!isMyMessage(msg)) return;
+    if (msg.type === "image") { alert("圖片不能編輯，只能收回"); return; }
+    setEditingMessageId(msg.id);
+    setEditingText(msg.text ?? "");
   };
 
   const cancelEditMessage = () => {
@@ -452,65 +558,44 @@ function ChatPage({ profile, user, onLoginRequired }) {
 
   const saveEditedMessage = async (messageId) => {
     if (!editingText.trim()) return;
-
-    await updateDoc(doc(db, "chatrooms", selectedRoomId, "messages", messageId), {
-      text: editingText.trim(),
-      edited: true,
-      editedAt: serverTimestamp(),
-    });
-
+    await updateDoc(
+      doc(db, "chatrooms", selectedRoomId, "messages", messageId),
+      { text: editingText.trim(), edited: true, editedAt: serverTimestamp() }
+    );
     setEditingMessageId(null);
     setEditingText("");
   };
 
-  const unsendMessage = async (message) => {
-    if (!isMyMessage(message)) return;
+  // ── unsend message ──────────────────────────────────────────────────────────
 
-    const confirmUnsend = window.confirm("確定要收回這則訊息嗎？");
-    if (!confirmUnsend) return;
+  const unsendMessage = async (msg) => {
+    if (!isMyMessage(msg)) return;
+    if (!window.confirm("確定要收回這則訊息嗎？")) return;
 
-    if (message.type === "image" && message.imagePath) {
+    if (msg.type === "image" && msg.imagePath) {
       try {
-        await deleteObject(ref(storage, message.imagePath));
-      } catch (error) {
-        console.warn("圖片檔案刪除失敗，但訊息仍會刪除：", error);
+        await deleteObject(ref(storage, msg.imagePath));
+      } catch (err) {
+        console.warn("圖片檔案刪除失敗，但訊息仍會刪除：", err);
       }
     }
 
-    await deleteDoc(doc(db, "chatrooms", selectedRoomId, "messages", message.id));
+    await deleteDoc(
+      doc(db, "chatrooms", selectedRoomId, "messages", msg.id)
+    );
   };
 
-  const deleteChatroom = async (roomId) => {
-    const confirmDelete = window.confirm("確定要刪除這個聊天室嗎？");
-    if (!confirmDelete) return;
+  // ── message timestamp ───────────────────────────────────────────────────────
 
-    await deleteDoc(doc(db, "chatrooms", roomId));
+  const messageTime = (msg) =>
+    msg.createdAt?.toDate ? msg.createdAt.toDate().toLocaleTimeString() : "";
 
-    if (selectedRoomId === roomId) {
-      backToRoomList();
-    }
-
-    const params = new URLSearchParams(window.location.search);
-    if (params.get("room") === roomId) {
-      window.history.replaceState({}, "", window.location.pathname);
-    }
-  };
-
-  const copyInviteLink = async () => {
-    if (!selectedRoomId) return;
-
-    const inviteLink = `${window.location.origin}${window.location.pathname}?room=${selectedRoomId}`;
-
-    await navigator.clipboard.writeText(inviteLink);
-    setCopied(true);
-
-    setTimeout(() => {
-      setCopied(false);
-    }, 1500);
-  };
+  // ── render ──────────────────────────────────────────────────────────────────
 
   return (
     <main className="mainLayout">
+
+      {/* ── Sidebar: room list ───────────────────────────────────────────────── */}
       <aside className={selectedRoom ? "sidebar hideOnMobile" : "sidebar"}>
         <h2>Chatrooms</h2>
 
@@ -533,14 +618,8 @@ function ChatPage({ profile, user, onLoginRequired }) {
                     <p className="roomCreator">Created by {room.createdBy}</p>
                   </div>
 
-                  <span
-                    className={
-                      room.visibility === "private"
-                        ? "roomBadge privateBadge"
-                        : "roomBadge publicBadge"
-                    }
-                  >
-                    {room.visibility === "private" ? "Private" : "Public"}
+                  <span className={visibilityBadgeClass(room)}>
+                    {visibilityLabel(room)}
                   </span>
                 </div>
 
@@ -587,20 +666,19 @@ function ChatPage({ profile, user, onLoginRequired }) {
         </div>
       </aside>
 
+      {/* ── Chat panel ──────────────────────────────────────────────────────── */}
       {selectedRoom && !user ? (
         <section className="chatPanel emptyChatPanel">
           <h2>請先登入才能加入聊天室</h2>
-
-          <button
-            type="button"
-            className="inviteButton"
-            onClick={onLoginRequired}
-          >
+          <button type="button" className="inviteButton" onClick={onLoginRequired}>
             登入
           </button>
         </section>
+
       ) : selectedRoom ? (
         <section className="chatPanel showChatOnMobile">
+
+          {/* Header */}
           <div className="chatHeader">
             <button
               type="button"
@@ -613,16 +691,10 @@ function ChatPage({ profile, user, onLoginRequired }) {
             <div className="chatHeaderInfo">
               <h2>{selectedRoom.name}</h2>
               <p>{selectedRoom.description || "No description"}</p>
-              <small>
-                {selectedRoom.visibility === "private" ? "Private" : "Public"}
-              </small>
+              <small>{visibilityLabel(selectedRoom)}</small>
             </div>
 
-            <button
-              type="button"
-              className="inviteButton"
-              onClick={copyInviteLink}
-            >
+            <button type="button" className="inviteButton" onClick={copyInviteLink}>
               {copied ? "已複製" : "複製邀請連結"}
             </button>
 
@@ -639,6 +711,7 @@ function ChatPage({ profile, user, onLoginRequired }) {
             </button>
           </div>
 
+          {/* Search */}
           <div className="searchBar">
             <input
               type="text"
@@ -646,7 +719,6 @@ function ChatPage({ profile, user, onLoginRequired }) {
               value={searchText}
               onChange={(e) => setSearchText(e.target.value)}
             />
-
             {searchText && (
               <button type="button" onClick={() => setSearchText("")}>
                 清除
@@ -654,94 +726,200 @@ function ChatPage({ profile, user, onLoginRequired }) {
             )}
           </div>
 
+          {/* Message list */}
           <div className="messageArea">
             {filteredMessages.length === 0 ? (
               <p className="emptyText">
                 {searchText ? "找不到符合的訊息" : "目前還沒有訊息"}
               </p>
             ) : (
-              filteredMessages.map((message) => (
+              filteredMessages.map((msg) => (
                 <div
-                  key={message.id}
-                  className={
-                    isMyMessage(message)
-                      ? "messageBubble myMessage"
-                      : "messageBubble"
-                  }
+                  key={msg.id}
+                  ref={(el) => { if (el) messageRefs.current[msg.id] = el; }}
+                  className={[
+                    "messageBubble",
+                    isMyMessage(msg) ? "myMessage" : "",
+                    highlightedMessageId === msg.id ? "highlightMessage" : "",
+                  ].filter(Boolean).join(" ")}
                 >
-                  <strong>{message.sender}</strong>
+                  <strong>{msg.sender}</strong>
 
-                  {editingMessageId === message.id ? (
+                  {/* Reply preview */}
+                  {msg.replyTo && (
+                    <button
+                      type="button"
+                      className="replyPreview"
+                      onClick={() => focusOriginalMessage(msg.replyTo.id)}
+                    >
+                      <span className="replyPreviewLabel">
+                        回覆 {msg.replyTo.sender}：
+                      </span>
+                      <span>{replyPreviewText(msg.replyTo)}</span>
+                    </button>
+                  )}
+
+                  {/* Message body */}
+                  {editingMessageId === msg.id ? (
                     <div className="editMessageBox">
                       <input
                         value={editingText}
                         onChange={(e) => setEditingText(e.target.value)}
                         onKeyDown={(e) => {
-                          if (e.key === "Enter") {
-                            saveEditedMessage(message.id);
-                          }
+                          if (e.key === "Enter") saveEditedMessage(msg.id);
                         }}
                       />
-
-                      <button
-                        type="button"
-                        onClick={() => saveEditedMessage(message.id)}
-                      >
+                      <button type="button" onClick={() => saveEditedMessage(msg.id)}>
                         儲存
                       </button>
-
                       <button type="button" onClick={cancelEditMessage}>
                         取消
                       </button>
                     </div>
-                  ) : message.type === "image" ? (
+                  ) : msg.type === "image" ? (
                     <img
                       className="messageImage"
-                      src={message.imageUrl}
+                      src={msg.imageUrl}
                       alt="聊天圖片"
                     />
                   ) : (
-                    <p className="messageText">{message.text}</p>
+                    <p className="messageText">{msg.text}</p>
                   )}
 
+                  {/* Timestamp */}
                   <small>
-                    {message.createdAt?.toDate
-                      ? message.createdAt.toDate().toLocaleTimeString()
-                      : ""}
-                    {message.edited ? "（已編輯）" : ""}
+                    {messageTime(msg)}
+                    {msg.edited ? "（已編輯）" : ""}
                   </small>
 
-                  {isMyMessage(message) && editingMessageId !== message.id && (
-                    <div className="messageActions">
-                      {message.type !== "image" && (
-                        <button
-                          type="button"
-                          onClick={() => startEditMessage(message)}
-                        >
-                          編輯
-                        </button>
-                      )}
-
-                      <button type="button" onClick={() => unsendMessage(message)}>
-                        收回
+                  {/* Reactions */}
+                  <div className="reactionBar">
+                    {REACTION_EMOJIS.map((emoji) => (
+                      <button
+                        key={emoji}
+                        type="button"
+                        onClick={() => toggleReaction(msg, emoji)}
+                      >
+                        {emoji} {msg.reactions?.[emoji]?.length || 0}
                       </button>
-                    </div>
-                  )}
+                    ))}
+                  </div>
+
+                  {/* Message actions */}
+                  <div className="messageActions">
+                    <button type="button" onClick={() => setReplyTo(msg)}>
+                      回覆
+                    </button>
+
+                    {!isMyMessage(msg) && (
+                      <button
+                        type="button"
+                        onClick={() => toggleBlockUser(msg.senderUid)}
+                      >
+                        {myBlockedUids.includes(msg.senderUid)
+                          ? "解除封鎖"
+                          : "封鎖"}
+                      </button>
+                    )}
+
+                    {isMyMessage(msg) && editingMessageId !== msg.id && (
+                      <>
+                        {msg.type !== "image" && (
+                          <button
+                            type="button"
+                            onClick={() => startEditMessage(msg)}
+                          >
+                            編輯
+                          </button>
+                        )}
+                        <button type="button" onClick={() => unsendMessage(msg)}>
+                          收回
+                        </button>
+                      </>
+                    )}
+                  </div>
                 </div>
               ))
             )}
           </div>
 
+          {/* Blocked users bar */}
+          {myBlockedUids.length > 0 && (
+            <div className="blockedUsersBox">
+              <button
+                type="button"
+                className="blockedListButton"
+                onClick={() => setShowBlockedList(true)}
+              >
+                封鎖名單（{myBlockedUids.length}）
+              </button>
+            </div>
+          )}
+
+          {/* Blocked list modal */}
+          {showBlockedList && (
+            <div className="modalOverlay">
+              <div className="blockedListModal">
+                <button
+                  type="button"
+                  className="closeButton"
+                  onClick={() => setShowBlockedList(false)}
+                >
+                  ×
+                </button>
+
+                <h2>封鎖名單</h2>
+
+                {blockedUserList.length === 0 ? (
+                  <p className="emptyText">目前沒有封鎖任何使用者</p>
+                ) : (
+                  <>
+                    <div className="blockedUserList">
+                      {blockedUserList.map((u) => (
+                        <div key={u.uid} className="blockedUserItem">
+                          <strong>{u.name}</strong>
+                          <button
+                            type="button"
+                            onClick={() => toggleBlockUser(u.uid)}
+                          >
+                            解除封鎖
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+
+                    <button
+                      type="button"
+                      className="unblockAllButton"
+                      onClick={unblockAll}
+                    >
+                      全部解除封鎖
+                    </button>
+                  </>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* Reply box */}
+          {replyTo && (
+            <div className="replyBox">
+              <span>
+                正在回覆 {replyTo.sender}：{replyPreviewText(replyTo)}
+              </span>
+              <button type="button" onClick={() => setReplyTo(null)}>
+                取消
+              </button>
+            </div>
+          )}
+
+          {/* Input bar */}
           <div className="messageInputBar">
             <input
               placeholder="輸入訊息"
               value={messageText}
               onChange={(e) => setMessageText(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === "Enter") {
-                  sendMessage();
-                }
-              }}
+              onKeyDown={(e) => { if (e.key === "Enter") sendMessage(); }}
             />
 
             <input
@@ -765,12 +943,14 @@ function ChatPage({ profile, user, onLoginRequired }) {
             </button>
           </div>
         </section>
+
       ) : (
         <section className="chatPanel emptyChatPanel">
           <h2>請先選擇或建立聊天室</h2>
         </section>
       )}
 
+      {/* ── FAB: create room ─────────────────────────────────────────────────── */}
       <button
         type="button"
         className={
@@ -783,6 +963,7 @@ function ChatPage({ profile, user, onLoginRequired }) {
         +
       </button>
 
+      {/* ── Modal: create room ───────────────────────────────────────────────── */}
       {showCreateBox && (
         <div className="modalOverlay">
           <div className="createRoomModal">
@@ -833,6 +1014,7 @@ function ChatPage({ profile, user, onLoginRequired }) {
         </div>
       )}
 
+      {/* ── Modal: join private room ─────────────────────────────────────────── */}
       {showPasswordBox && (
         <div className="modalOverlay">
           <div className="createRoomModal">
@@ -857,9 +1039,7 @@ function ChatPage({ profile, user, onLoginRequired }) {
               value={joinPassword}
               onChange={(e) => setJoinPassword(e.target.value)}
               onKeyDown={(e) => {
-                if (e.key === "Enter") {
-                  confirmJoinPrivateRoom();
-                }
+                if (e.key === "Enter") confirmJoinPrivateRoom();
               }}
             />
 
